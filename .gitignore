@@ -1,0 +1,58 @@
+# DATASETS
+data/raw/
+data/processed/frames/
+data/processed/clips/
+
+# MODEL WEIGHTS
+models/**/*.pt
+models/**/*.pth
+models/**/*.onnx
+models/**/*.bin
+models/**/*.safetensors
+models/**/*.ckpt
+
+# RUNTIME OUTPUTS
+outputs/
+logs/
+
+# PYTHON
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# ENVIRONMENT & SECRETS
+.env
+.env.local
+*.key
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+data/
+
+models/
+
+*.zip
+
+*.mp4
+
+*.avi
+
+*.jpg
+
+*.png
+
+*.pt
+
+*.pth
