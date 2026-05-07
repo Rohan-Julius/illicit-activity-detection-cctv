@@ -10,6 +10,11 @@ models/**/*.onnx
 models/**/*.bin
 models/**/*.safetensors
 models/**/*.ckpt
+backend/models/*.pth
+backend/models/*.pt
+stage2_best.pth
+best.onnx
+videomae_best.pth
 
 # RUNTIME OUTPUTS
 outputs/
@@ -26,10 +31,13 @@ env/
 dist/
 build/
 .pytest_cache/
+backend/__pycache__/
+backend/.pytest_cache/
 
 # ENVIRONMENT & SECRETS
 .env
 .env.local
+.env*.local
 *.key
 
 # OS & IDE
@@ -39,20 +47,24 @@ Thumbs.db
 .idea/
 *.swp
 
-data/
+# V0 Sandbox
+__v0_runtime_loader.js
+__v0_devtools.tsx
+__v0_jsx-dev-runtime.ts
+.snowflake/
+.v0-trash/
 
-models/
+# Next.js & Node
+node_modules/
+.next/
+.vercel/
+next.user-config.*
+tsconfig.tsbuildinfo
+.eslintcache
 
+# Media files
 *.zip
-
 *.mp4
-
 *.avi
-
 *.jpg
-
 *.png
-
-*.pt
-
-*.pth

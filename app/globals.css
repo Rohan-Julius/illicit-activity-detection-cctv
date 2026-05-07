@@ -1,0 +1,225 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #0a0a0c;
+  --foreground: #f5f5f7;
+  --card: #141416;
+  --card-foreground: #f5f5f7;
+  --popover: #1a1a1f;
+  --popover-foreground: #f5f5f7;
+  --primary: #ff3333;
+  --primary-foreground: #0a0a0c;
+  --secondary: #22c55e;
+  --secondary-foreground: #0a0a0c;
+  --muted: #404046;
+  --muted-foreground: #a0a0a6;
+  --accent: #ff3333;
+  --accent-foreground: #0a0a0c;
+  --destructive: #ff3333;
+  --destructive-foreground: #f5f5f7;
+  --border: #2a2a2f;
+  --input: #1a1a1f;
+  --ring: #ff3333;
+  --chart-1: #ff3333;
+  --chart-2: #ff8c00;
+  --chart-3: #ffd700;
+  --chart-4: #22c55e;
+  --chart-5: #3b82f6;
+  --radius: 0.625rem;
+  --sidebar: #0a0a0c;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #ff3333;
+  --sidebar-primary-foreground: #0a0a0c;
+  --sidebar-accent: #ff3333;
+  --sidebar-accent-foreground: #0a0a0c;
+  --sidebar-border: #2a2a2f;
+  --sidebar-ring: #ff3333;
+}
+
+.dark {
+  --background: #0a0a0c;
+  --foreground: #f5f5f7;
+  --card: #141416;
+  --card-foreground: #f5f5f7;
+  --popover: #1a1a1f;
+  --popover-foreground: #f5f5f7;
+  --primary: #ff3333;
+  --primary-foreground: #0a0a0c;
+  --secondary: #22c55e;
+  --secondary-foreground: #0a0a0c;
+  --muted: #404046;
+  --muted-foreground: #a0a0a6;
+  --accent: #ff3333;
+  --accent-foreground: #0a0a0c;
+  --destructive: #ff3333;
+  --destructive-foreground: #f5f5f7;
+  --border: #2a2a2f;
+  --input: #1a1a1f;
+  --ring: #ff3333;
+  --chart-1: #ff3333;
+  --chart-2: #ff8c00;
+  --chart-3: #ffd700;
+  --chart-4: #22c55e;
+  --chart-5: #3b82f6;
+  --sidebar: #0a0a0c;
+  --sidebar-foreground: #f5f5f7;
+  --sidebar-primary: #ff3333;
+  --sidebar-primary-foreground: #0a0a0c;
+  --sidebar-accent: #ff3333;
+  --sidebar-accent-foreground: #0a0a0c;
+  --sidebar-border: #2a2a2f;
+  --sidebar-ring: #ff3333;
+}
+
+@theme inline {
+  --font-sans: var(--font-dm-sans), 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@keyframes markerPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 12px rgba(255, 51, 51, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 51, 51, 0);
+  }
+}
+
+@keyframes alertGlow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(255, 51, 51, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 51, 51, 0.8);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes sentinelCardPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 51, 51, 0.65);
+  }
+  70% {
+    box-shadow: 0 0 0 14px rgba(255, 51, 51, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 51, 51, 0);
+  }
+}
+
+@keyframes sentinelFlash {
+  0% {
+    opacity: 0.55;
+  }
+  8% {
+    opacity: 0.15;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@layer utilities {
+  .marker-pulse {
+    animation: markerPulse 2s infinite;
+  }
+  .alert-glow {
+    animation: alertGlow 2s infinite;
+  }
+  .slide-in-right {
+    animation: slideInRight 0.3s ease-out;
+  }
+
+  /* Map marker layout for "always-visible" camera cards */
+  .sentinel-marker {
+    position: relative;
+    transform: none;
+  }
+  .sentinel-connector {
+    position: absolute;
+    width: 2px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.25);
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.15));
+  }
+  .sentinel-dot {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background: #ff3333;
+    box-shadow: 0 0 16px rgba(255, 51, 51, 0.85);
+  }
+  .sentinel-alert-card {
+    animation: sentinelCardPulse 1.6s infinite;
+    border-color: rgba(255, 51, 51, 0.7) !important;
+  }
+
+  /* Hide map markers when fullscreen modal is open */
+  .sentinel-hide-markers .sentinel-marker {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+}

@@ -1,0 +1,14 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+opencv-python>=4.10.0.84
+numpy>=1.26.0,<2
+redis>=5.0.0
+supabase>=2.6.0
+twilio>=9.0.0
+pydantic>=2.8.0
+python-dotenv>=1.0.1
+torch>=2.2.0
+torchvision>=0.17.0
+ultralytics>=8.3.0
+transformers>=4.45.0
+transformers>=4.38.0
