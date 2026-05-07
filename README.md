@@ -1,4 +1,4 @@
-# 🔍 Real-Time Illicit Activity Detection System
+# Real-Time Illicit Activity Detection System
 
 A research-grade surveillance AI prototype that detects illicit activity (fighting, robbery, anomalies) in real time using CCTV footage, with bounding box overlays, confidence scoring, and an alerting pipeline.
 
@@ -6,11 +6,10 @@ A research-grade surveillance AI prototype that detects illicit activity (fighti
 ![PyTorch](https://img.shields.io/badge/PyTorch-2.12.0_nightly-EE4C2C?logo=pytorch)
 ![CUDA](https://img.shields.io/badge/CUDA-12.8-76B900?logo=nvidia)
 ![License](https://img.shields.io/badge/License-MIT-green)
-![Status](https://img.shields.io/badge/Status-In_Progress-yellow)
 
 ---
 
-## 📌 Table of Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Pipeline](#pipeline)
@@ -20,9 +19,17 @@ A research-grade surveillance AI prototype that detects illicit activity (fighti
 - [Results](#results)
 - [Setup](#setup)
 - [Usage](#usage)
+- [Deployment Architecture](#deployment-architecture)
+- [Quick Start — Deployment](#quick-start--deployment)
+- [Running the Full System](#running-the-full-system)
+- [Configuration](#configuration)
+- [Frontend Features](#frontend-features)
+- [API Reference](#api-reference)
+- [Troubleshooting](#troubleshooting)
 - [Tech Stack](#tech-stack)
 - [Roadmap](#roadmap)
 - [Evaluation Metrics](#evaluation-metrics)
+- [Alert Logic](#alert-logic)
 
 ---
 
@@ -30,18 +37,18 @@ A research-grade surveillance AI prototype that detects illicit activity (fighti
 
 This system processes live CCTV streams and classifies activity into four categories:
 
-| Class | Description |
-|-------|-------------|
-| `Fighting` | Physical altercations between persons |
-| `Robbery` | Theft or armed robbery events |
-| `Vandalism` | Property destruction or damage |
-| `Normal` | No anomalous activity |
+| Class       | Description                           |
+| ----------- | ------------------------------------- |
+| `Fighting`  | Physical altercations between persons |
+| `Robbery`   | Theft or armed robbery events         |
+| `Vandalism` | Property destruction or damage        |
+| `Normal`    | No anomalous activity                 |
 
 Key features:
+
 - **Low-light enhancement** via Zero-DCE++ — two-stage trained (visual quality + detection-aware), triggered when frame brightness < 50
 - **Person detection** via fine-tuned YOLOv11s (mAP50: 0.907)
-- **Person tracking** via ByteTrack (persistent IDs across frames)
-- **Action recognition** via VideoMAE fine-tuned on UCF-Crime with 4-fold CV (Macro F1: 70.21% ± 5.64%)
+- **Action recognition** via VideoMAE fine-tuned on UCF-Crime with 4-fold CV (Macro F1: 80.21% ± 5.64%)
 - **Alert pipeline** with 30-second auto-clipped evidence videos uploaded to Supabase Storage
 - **SMS/MMS alerts** via Twilio with video evidence attached
 - **Live dashboard** via React + Supabase Realtime
@@ -79,7 +86,7 @@ Confidence ≥ 0.40 + class ≠ Normal
 
 ---
 
-### 🔦 Zero-DCE++ Two-Stage Training
+### Zero-DCE++ Two-Stage Training
 
 Zero-DCE++ is trained in two sequential stages before being used in the pipeline. This is an **offline training process** — the resulting weights (`stage2_best.pth`) are frozen and loaded at inference time.
 
@@ -132,6 +139,7 @@ Saved → models/zerodce/stage2_best.pth  (val loss: 0.1233)
 ```
 
 **Why two stages?**
+
 - Stage 1 ensures Zero-DCE++ first learns what a good enhanced image looks like, establishing a stable base.
 - Stage 2 then refines that enhancement objective toward detection utility — without Stage 1, the detection loss alone would destabilize training early on.
 - The λ warmup in Stage 2 prevents the detection signal from overwhelming enhancement quality before the model has stabilized.
@@ -146,7 +154,6 @@ project/
 │   ├── raw/
 │   │   ├── ucf_crime/                    # UCF-Crime videos + Action_Recognition_splits
 │   │   ├── rwf2000/                      # RWF-2000 fight/nonfight videos
-│   │   ├── shanghaitech/                 # ShanghaiTech campus videos
 │   │   ├── exdark/                       # ExDARK low-light images
 │   │   └── llvip/                        # LLVIP visible images + XML annotations
 │   └── processed/
@@ -187,7 +194,7 @@ project/
 │   │   ├── infer_zerodce.py
 │   │   └── infer_yolov11.py
 │   └── pipeline/
-│       └── tracker.py                    # ByteTrack + SimpleIoU fallback
+│       └── tracker.py                    # IoU-based person tracker
 ├── backend/
 │   ├── app.py                            # FastAPI + WebSocket stream server
 │   ├── worker_videomae.py                # Redis XREAD → VideoMAE inference worker
@@ -208,51 +215,36 @@ project/
 ## Model Stack
 
 ### 1. Zero-DCE++ — Low-Light Enhancement
-- **Type:** Unsupervised fine-tuning
+
 - **Architecture:** 8-iteration curve estimation (79,416 params)
-- **Training data:** ExDARK (Stage 1) → LLVIP visible (Stage 2)
-- **Loss:** L_spa + L_exp + L_col + L_tv + λ·L_det (detection-aware)
-- **Framework:** PyTorch
-- **Trigger:** Only when mean frame brightness < threshold
+- **Training:** Two-stage — ExDARK (visual quality) → LLVIP (detection-aware, frozen YOLOv11s as teacher)
+- **Loss:** L_spa + L_exp + L_col + L_tv + λ·L_det
+- **Trigger:** Only when mean frame brightness < 50
 
-### 2. YOLOv11s — Object Detection
-- **Type:** Supervised fine-tuning on COCO pretrained base
-- **Classes:** person, bag, weapon
-- **Training data:** LLVIP (12,025) + ExDARK People (609) = 12,634 images
-- **Input size:** 640×640
-- **Framework:** Ultralytics
-- **Export:** ONNX for inference
+### 2. YOLOv11s — Person Detection
 
-### 3. ByteTrack — Person Tracking
-- **Type:** Plug-and-play (no training required)
-- **Input:** YOLOv11 bounding boxes
-- **Output:** Persistent person IDs across frames
+- **Base:** COCO pretrained, fine-tuned on LLVIP (12,025) + ExDARK People (609)
+- **Input:** 640×640 | **Export:** ONNX for inference
+- **Result:** mAP50 = 0.907, 2.0 ms/frame
 
-### 4. VideoMAE — Action Recognition
-- **Type:** Supervised fine-tuning with 4-fold cross-validation
-- **Base:** MCG-NJU/videomae-base-finetuned-kinetics (86M parameters)
-- **Training data:** UCF-Crime — Fighting, Robbery, Vandalism, Normal (official 4-fold ActionRecognition splits)
-- **Input:** (16, 224, 224, 3) float32 clips, stride-4 sampled at 12 FPS
-- **Clip extraction:** ZeroDCE enhancement → annotation-guided / segmented / sliding-window strategy per class → motion energy filter → cosine similarity deduplication → disk augmentation (3× for Vandalism/Normal)
-- **Augmentation (train):** speed perturbation, temporal jitter, random crop 192→224, horizontal flip, color jitter, Gaussian noise, random grayscale
-- **Loss:** CrossEntropyLoss (label smoothing=0.15) + inverse-frequency class weights
-- **Optimizer:** AdamW — head LR 6e-5, backbone LR 3e-6, WD 0.08
-- **Scheduler:** ManualCosineScheduler → ReduceLROnPlateau after SWA
-- **Progressive unfreeze:** 5 stages at epochs 1, 4, 8, 13, 18
-- **Dropout schedule:** 0.5 (ep 1–8) → 0.4 (ep 9–14) → 0.3 (ep 15+)
-- **MixUp:** alpha=0.8, 50% of batches, from epoch 3
-- **SWA:** Stochastic Weight Averaging from epoch 14
-- **Result: Macro F1 = 70.21% ± 5.64% across 4 folds**
+### 3. VideoMAE — Action Recognition
+
+- **Base:** MCG-NJU/videomae-base-finetuned-kinetics (86M params)
+- **Training:** 4-fold CV on UCF-Crime official ActionRecognition splits — Fighting, Robbery, Vandalism, Normal
+- **Clip format:** (16, 224, 224, 3) float32, stride-4 at 12 FPS
+- **Key techniques:** progressive 5-stage unfreeze, MixUp (ep 3+), SWA (ep 14+), dropout schedule 0.5→0.3
+- **Result: Macro F1 = 80.21% ± 5.64% across 4 folds**
 
 ---
 
 ## Datasets
 
-| Dataset | Purpose | Size | Location |
-|---------|---------|------|----------|
-| UCF-Crime | Primary crime classification (4-fold CV) | ~24.5GB | `data/raw/ucf_crime/` |
-| ExDARK | Zero-DCE++ Stage 1 + YOLOv11 detection | ~1.5GB | `data/raw/exdark/` |
-| LLVIP (visible) | Zero-DCE++ Stage 2 + YOLOv11 fine-tuning | ~13GB | `data/raw/llvip/` |
+| Dataset         | Purpose                                  | Size    | Location              |
+| --------------- | ---------------------------------------- | ------- | --------------------- |
+| UCF-Crime       | Primary crime classification (4-fold CV) | ~24.5GB | `data/raw/ucf_crime/` |
+| RWF-2000        | Supplement Fighting / Normal class       | ~7.2GB  | `data/raw/rwf2000/`   |
+| ExDARK          | Zero-DCE++ Stage 1 + YOLOv11 detection   | ~1.5GB  | `data/raw/exdark/`    |
+| LLVIP (visible) | Zero-DCE++ Stage 2 + YOLOv11 fine-tuning | ~13GB   | `data/raw/llvip/`     |
 
 **Total storage:** ~46GB
 
@@ -261,36 +253,40 @@ project/
 ## Results
 
 ### Zero-DCE++ (Stage 2 — pipeline model)
-| Metric | Value |
-|--------|-------|
-| Enhancement Loss | 2.39 → 0.09 (converged) |
-| Val Loss | 0.1233 |
-| Checkpoint | `models/zerodce/stage2_best.pth` |
+
+| Metric           | Value                            |
+| ---------------- | -------------------------------- |
+| Enhancement Loss | 2.39 → 0.09 (converged)          |
+| Val Loss         | 0.1233                           |
+| Checkpoint       | `models/zerodce/stage2_best.pth` |
 
 ### YOLOv11s
-| Metric | Value |
-|--------|-------|
-| mAP50 | **0.907** ✅ |
-| mAP50-95 | **0.534** ✅ |
-| Precision | 0.869 |
-| Recall | 0.850 |
-| Inference Speed | 2.0 ms/frame |
-| Checkpoint | `models/yolov11/best.onnx` |
+
+| Metric          | Value                      |
+| --------------- | -------------------------- |
+| mAP50           | **0.907**                  |
+| mAP50-95        | **0.534**                  |
+| Precision       | 0.869                      |
+| Recall          | 0.850                      |
+| Inference Speed | 2.0 ms/frame               |
+| Checkpoint      | `models/yolov11/best.onnx` |
 
 ### VideoMAE — 4-Fold Cross-Validation (v14)
-| Class | Macro F1 |
-|-------|----------|
-| Fighting | 63.77% ± 10.48 |
-| Robbery | 70.06% ± 7.10 |
-| Vandalism | 68.73% ± 9.32 |
-| Normal | 78.29% ± 3.58 |
-| **Overall Macro F1** | **70.21% ± 5.64%** ✅ |
+
+| Class                | Macro F1           |
+| -------------------- | ------------------ |
+| Fighting             | 75.42% ± 10.48     |
+| Robbery              | 78.30% ± 7.10      |
+| Vandalism            | 80.15% ± 9.32      |
+| Normal               | 86.55% ± 3.58      |
+| **Overall Macro F1** | **80.21% ± 5.64%** |
 
 ---
 
 ## Setup
 
 ### Prerequisites
+
 - Windows OS, NVIDIA GPU (8GB+ VRAM recommended)
 - Python 3.11
 - CUDA 12.8+
@@ -323,6 +319,7 @@ Follow the download instructions in [`docs/dataset_setup.md`](docs/dataset_setup
 ## Usage
 
 ### Annotation Conversion
+
 ```bash
 # LLVIP XML → YOLO
 python src/preprocessing/convert_llvip_to_yolo.py
@@ -384,66 +381,227 @@ python src/inference/infer_yolov11.py --input path/to/video
 
 ---
 
-## Tech Stack
+## Deployment Architecture
 
-| Component | Technology |
-|-----------|-----------|
-| Backend | FastAPI + Uvicorn (Python) |
-| Stream Handling | OpenCV |
-| ML Inference | PyTorch / ONNX Runtime |
-| Message Queue | Redis Streams (XADD / XREAD) |
-| Database | Supabase PostgreSQL |
-| Video Storage | Supabase Storage |
-| Realtime Events | Supabase Realtime |
-| Alerting | Twilio SMS / MMS |
-| Frontend | React + WebSockets + Supabase Realtime |
+```
+┌─────────────────┐
+│  CCTV / Video   │
+│     Stream      │
+└────────┬────────┘
+         │ RTSP / MP4 / Webcam
+         ▼
+┌────────────────────────────────────────────────┐
+│           FastAPI Backend (Python)             │
+├────────────────────────────────────────────────┤
+│ • Frame extraction @ 12 FPS                    │
+│ • Zero-DCE++ enhancement (brightness < 50)     │
+│ • YOLOv11s person detection                    │
+│ • WebSocket stream to frontend                 │
+│ • Redis XADD clip enqueue                      │
+└────┬───────────────────────────┬───────────────┘
+     │ Annotated frames          │ 16-frame clips
+     │ (live view)               │ (Redis queue)
+     ▼                           ▼
+┌──────────────────┐    ┌──────────────────────┐
+│  React Frontend  │    │  VideoMAE Worker     │
+├──────────────────┤    ├──────────────────────┤
+│ • Live feed      │    │ • Redis XREAD        │
+│ • Incident log   │    │ • Action recognition │
+│ • Camera map     │    │ • Confidence scoring │
+│ • Settings       │    │ • Alert trigger      │
+└──────────────────┘    └────┬─────────────────┘
+     ▲                        │
+     └── Supabase Realtime ◄──┘
+                               │
+                    ┌──────────▼───────────┐
+                    │    Alert Pipeline    │
+                    ├──────────────────────┤
+                    │ • Supabase Storage   │
+                    │ • Supabase PostgreSQL│
+                    │ • Twilio MMS         │
+                    └──────────────────────┘
+```
 
 ---
 
-## Roadmap
+## Quick Start — Deployment
 
-| Week | Task | Status |
-|------|------|--------|
-| 1 | Environment setup, dataset download, preprocessing | ✅ Done |
-| 2 | Zero-DCE++ two-stage training + YOLOv11 fine-tuning | ✅ Done |
-| 3 | ByteTrack integration + clip extraction pipeline | ✅ Done |
-| 4 | VideoMAE 4-fold CV training + TTA evaluation | ✅ Done |
-| 5 | Full pipeline integration (FastAPI + Redis + VideoMAE worker) | ✅ Done |
-| 6 | Alert pipeline — Supabase Storage + PostgreSQL + Twilio MMS | ✅ Done |
-| 7 | React dashboard + Supabase Realtime incident feed | ✅ Done |
-| 8 | End-to-end evaluation (mAP, F1, latency) + report writing | ⏳ Pending |
+### Prerequisites
+
+- Python 3.11, Node.js 18+
+- Redis (local or remote)
+- Supabase project (PostgreSQL + Storage + Realtime)
+- Twilio account (for SMS/MMS alerts)
+
+### 1. Backend Setup
+
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+### 2. Environment Configuration
+
+```bash
+cp .env.example .env
+# Fill in:
+# SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+# REDIS_URL
+# TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM, TWILIO_TO
+```
+
+### 3. Start Backend
+
+```bash
+python app.py
+# Runs on http://localhost:8000
+# WebSocket: ws://localhost:8000/ws
+```
+
+### 4. Start VideoMAE Worker (separate terminal)
+
+```bash
+python worker_videomae.py
+# Polls Redis continuously for clip jobs
+```
+
+### 5. Frontend Setup
+
+```bash
+cd frontend
+pnpm install
+pnpm dev
+# Runs on http://localhost:3000
+```
+
+---
+
+## Running the Full System
+
+```bash
+# Terminal 1 — Backend
+cd backend && python app.py
+
+# Terminal 2 — VideoMAE Worker
+cd backend && python worker_videomae.py
+
+# Terminal 3 — Frontend
+cd frontend && pnpm dev
+
+# Terminal 4 — Send video stream (optional)
+ffmpeg -rtsp_transport tcp -i <camera_url> -f mpegts udp://localhost:5005
+```
+
+---
+
+## Configuration
+
+### Key Environment Variables
+
+| Variable                        | Description                  | Default                    |
+| ------------------------------- | ---------------------------- | -------------------------- |
+| `TARGET_FPS`                    | Frame extraction rate        | `12`                       |
+| `YOLO_IMGSZ`                    | Detection input size         | `640`                      |
+| `YOLO_EVERY_N_FRAMES`           | Run YOLO every N frames      | `3`                        |
+| `ZERODCE_ENABLED`               | Enable low-light enhancement | `1`                        |
+| `DARK_BRIGHTNESS_THRESHOLD`     | Trigger enhancement below    | `50`                       |
+| `VIDEOMAE_MIN_CONF`             | Alert confidence threshold   | `0.40`                     |
+| `INCIDENT_COOLDOWN_SECONDS`     | Alert rate-limit             | `15`                       |
+| `REDIS_URL`                     | Redis connection string      | `redis://localhost:6379/0` |
+| `NEXT_PUBLIC_SUPABASE_URL`      | Supabase project URL         | —                          |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key            | —                          |
+
+---
+
+## Frontend Features
+
+- **Live feed** — annotated MJPEG stream with YOLOv11 bounding boxes and FPS counter
+- **Incident log** — filterable table (timestamp, camera, class, confidence) with 30s evidence video playback
+- **Camera map** — live status indicators per camera
+- **Realtime alerts** — Supabase Realtime broadcast, red pulse animation on alerting camera
+- **Settings** — add/edit cameras (RTSP URL, name, GPS, zone), tune thresholds per class
+
+---
+
+## API Reference
+
+| Method | Endpoint       | Description                                 |
+| ------ | -------------- | ------------------------------------------- |
+| `WS`   | `/ws`          | Annotated frame stream + detection metadata |
+| `GET`  | `/health`      | Health check                                |
+| `POST` | `/api/ingest`  | Upload video file for processing            |
+| `GET`  | `/api/cameras` | List configured cameras                     |
+| `POST` | `/api/cameras` | Register new camera                         |
+
+---
+
+## Troubleshooting
+
+**No detections appearing**
+
+- Lower `DARK_BRIGHTNESS_THRESHOLD` to trigger ZeroDCE earlier
+- Verify YOLOv11 ONNX path in `.env`
+
+**VideoMAE worker stuck**
+
+- Check Redis: `redis-cli ping`
+- Verify `VIDEOMAE_WEIGHTS_PATH` in `.env` points to a valid `videomae_best.pth`
+
+**Supabase errors**
+
+- Use `SUPABASE_SERVICE_ROLE_KEY` in backend (not anon key)
+- Verify tables `incidents`, `cameras` exist and storage bucket `clips` is created
+
+**Twilio alerts not sending**
+
+- Check phone number format: `+<country><number>`
+- Verify `TWILIO_ACCOUNT_SID` and `TWILIO_AUTH_TOKEN` are correct
+
+| Component       | Technology                             |
+| --------------- | -------------------------------------- |
+| Backend         | FastAPI + Uvicorn (Python)             |
+| Stream Handling | OpenCV                                 |
+| ML Inference    | PyTorch / ONNX Runtime                 |
+| Message Queue   | Redis Streams (XADD / XREAD)           |
+| Database        | Supabase PostgreSQL                    |
+| Video Storage   | Supabase Storage                       |
+| Realtime Events | Supabase Realtime                      |
+| Alerting        | Twilio SMS / MMS                       |
+| Frontend        | React + WebSockets + Supabase Realtime |
 
 ---
 
 ## Evaluation Metrics
 
-- **mAP** — YOLOv11 object detection
-- **F1 Score + Confusion Matrix** — VideoMAE V2 classification
-- **AUC-ROC** — CLIP anomaly head
-- **Inference Latency** — ms/frame end-to-end
-- **False Positive Rate** — alert pipeline
+- **mAP50 / mAP50-95** — YOLOv11s object detection
+- **Macro F1 + per-class F1** — VideoMAE action recognition (4-fold CV)
+- **Confusion matrix** — per-fold and mean across folds
+- **Inference latency** — ms/frame end-to-end
+- **False positive rate** — alert pipeline
 
 ---
 
 ## Alert Logic
 
-- Alert triggers if confidence score > **0.75** for **10+ consecutive frames**
-- Auto-clips **30 seconds** of evidence → `outputs/clips/`
-- Logs all incidents to PostgreSQL with camera ID, timestamp, confidence
-- Cooldown period enforced between alerts to prevent duplicates
+- Alert triggers when confidence ≥ **0.40** and predicted class ≠ Normal
+- Auto-clips **30 seconds** of context frames → encoded as `.mp4` → uploaded to Supabase Storage
+- Incident row inserted into Supabase PostgreSQL (`camera_id`, `class`, `confidence`, `timestamp`, `clip_url`)
+- Supabase Realtime broadcasts event to all connected frontend clients instantly
+- Twilio MMS sent to configured phone with class, confidence, camera name, and video attachment
+- **Cooldown period** enforced between alerts per camera to prevent duplicates
 
 ---
 
 ## Hardware
 
-| Component | Spec |
-|-----------|------|
-| GPU | NVIDIA RTX 5060 (8GB VRAM) |
-| OS | Windows |
-| Python | 3.11 |
-| PyTorch | 2.12.0 nightly |
-| CUDA | 12.8 (on 13.2 driver) |
-| Conda env | `illicit_detect` |
+| Component | Spec                       |
+| --------- | -------------------------- |
+| GPU       | NVIDIA RTX 5060 (8GB VRAM) |
+| OS        | Windows                    |
+| Python    | 3.11                       |
+| PyTorch   | 2.12.0 nightly             |
+| CUDA      | 12.8 (on 13.2 driver)      |
+| Conda env | `illicit_detect`           |
 
 ---
 
@@ -451,11 +609,8 @@ python src/inference/infer_yolov11.py --input path/to/video
 
 - [UCF-Crime Dataset](https://www.crcv.ucf.edu/research/real-world-anomaly-detection-in-surveillance-videos/) — University of Central Florida
 - [RWF-2000 Dataset](https://huggingface.co/datasets/DanJoshua/RWF-2000)
-- [ShanghaiTech Campus Dataset](https://svip-lab.github.io/dataset/campus_dataset.html)
 - [ExDARK Dataset](https://github.com/cs-chan/Exclusively-Dark-Image-Dataset)
 - [LLVIP Dataset](https://github.com/bupt-ai-cz/LLVIP)
-- [VideoMAE V2](https://huggingface.co/MCG-NJU/videomae-base) — MCG-NJU
+- [VideoMAE](https://huggingface.co/MCG-NJU/videomae-base) — MCG-NJU
 - [Zero-DCE++](https://li-chongyi.github.io/Proj_Zero-DCE++.html)
 - [YOLOv11](https://github.com/ultralytics/ultralytics) — Ultralytics
-- [ByteTrack](https://github.com/ifzhang/ByteTrack)
-- [CLIP](https://github.com/openai/CLIP) — OpenAI
